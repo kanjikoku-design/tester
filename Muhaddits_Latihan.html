@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Latihan Hafalan Hadits (Muhaddits AI)</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7f6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            text-align: center;
+        }
+        h1 { color: #2c3e50; }
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-top: 20px;
+        }
+        select {
+            padding: 10px;
+            font-size: 16px;
+            width: 100%;
+            max-width: 400px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            margin-bottom: 20px;
+        }
+        button {
+            padding: 12px 25px;
+            font-size: 16px;
+            background-color: #27ae60;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        button:hover { background-color: #2ecc71; }
+        button:disabled { background-color: #95a5a6; cursor: not-allowed; }
+        
+        #status {
+            margin-top: 15px;
+            font-weight: bold;
+            color: #e74c3c;
+        }
+        
+        .arabic-container {
+            margin-top: 30px;
+            font-size: 34px;
+            direction: rtl;
+            line-height: 2;
+            font-family: 'Amiri', 'Traditional Arabic', Arial, serif;
+        }
+        
+        .word {
+            display: inline-block;
+            margin: 0 5px;
+            color: #bdc3c7; /* Warna abu-abu (tersembunyi/belum terbaca) */
+            transition: color 0.3s ease;
+        }
+        
+        .word.matched {
+            color: #27ae60; /* Warna hijau jika benar */
+            font-weight: bold;
+        }
+
+        #transcript {
+            margin-top: 20px;
+            padding: 10px;
+            background: #ecf0f1;
+            border-radius: 5px;
+            font-style: italic;
+            color: #555;
+            min-height: 50px;
+        }
+        .instructions {
+            font-size: 14px;
+            color: #7f8c8d;
+            margin-bottom: 20px;
+            text-align: left;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Muhaddits AI (Versi Latihan)</h1>
+    
+    <div class="card">
+        <div class="instructions">
+            <strong>Cara Penggunaan:</strong><br>
+            1. Pilih hadits/zikir yang ingin dihafal.<br>
+            2. Klik tombol "Mulai Setoran Suara" (izinkan akses mikrofon jika diminta).<br>
+            3. Mulailah melafalkan hadits. Kata yang Anda ucapkan dengan benar akan berubah warna menjadi <strong>Hijau</strong>.<br>
+            <em>Catatan: Gunakan browser Google Chrome untuk fitur pengenalan suara yang optimal.</em>
+        </div>
+
+        <select id="haditsSelect">
+            <option value="">-- Pilih Hadits / Zikir --</option>
+        </select>
+
+        <br>
+        <button id="startBtn">🎤 Mulai Setoran Suara</button>
+        <button id="stopBtn" style="background-color:#e74c3c; display:none;">⏹ Hentikan</button>
+        
+        <div id="status">Pilih hadits untuk memulai.</div>
+        
+        <div id="haditsDisplay" class="arabic-container"></div>
+        
+        <h4>Teks yang ditangkap (Transcript):</h4>
+        <div id="transcript">Suara Anda akan muncul di sini...</div>
+    </div>
+
+    <script>
+        // Database Hadits (diambil dari ekstrak PDF sebelumnya)
+        const database = [
+            { id: 1, title: "1. Keluar Toilet", text: "غُفْرَانَكَ" },
+            { id: 2, title: "2. Masuk Masjid", text: "اللَّهُمَّ افْتَحْ لِي أَبْوَابَ رَحْمَتِكَ" },
+            { id: 3, title: "3. Keluar Masjid", text: "اللَّهُمَّ إِنِّي أَسْأَلُكَ مِنْ فَضْلِكَ" },
+            { id: 4, title: "4. Sebelum Makan", text: "بِسْمِ اللَّهِ" },
+            { id: 5, title: "5. Sujud", text: "سُبْحَانَ رَبِّيَ الْأَعْلَى" },
+            { id: 6, title: "6. Takut Musuh", text: "اللَّهُمَّ إِنَّا نَجْعَلُكَ فِي نُحُورِهِمْ، وَنَعُوذُ بِكَ مِنْ شُرُورِهِمْ" },
+            { id: 7, title: "7. Doa Rukuk & Sujud", text: "سُبْحَانَكَ اللَّهُمَّ رَبَّنَا وَبِحَمْدِكَ، اللَّهُمَّ اغْفِرْ لِي" },
+            { id: 8, title: "8. Doa Musibah", text: "قَدَّرَ اللَّهُ وَمَا شَاءَ فَعَلَ" },
+            { id: 9, title: "9. Keutamaan Belajar Al-Quran", text: "خَيْرُكُمْ مَنْ تَعَلَّمَ القُرْآنَ وَعَلَّمَهُ" },
+            { id: 10, title: "10. Keutamaan Menuntut Ilmu", text: "مَنْ يُرِدِ اللَّهُ بِهِ خَيْراً؛ يُفَقِّهْهُ فِي الدِّينِ" }
+        ];
+
+        const selectEl = document.getElementById('haditsSelect');
+        const displayEl = document.getElementById('haditsDisplay');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const statusEl = document.getElementById('status');
+        const transcriptEl = document.getElementById('transcript');
+
+        let currentWords = [];
+        let recognition = null;
+
+        // Populate dropdown
+        database.forEach(item => {
+            let opt = document.createElement('option');
+            opt.value = item.id;
+            opt.textContent = item.title;
+            selectEl.appendChild(opt);
+        });
+
+        // Fungsi menghilangkan harakat untuk pencocokan string
+        function removeHarakat(str) {
+            return str.replace(/[ؗ-ًؚ-ْ]/g, "");
+        }
+
+        // Handle selection
+        selectEl.addEventListener('change', (e) => {
+            const selectedId = parseInt(e.target.value);
+            displayEl.innerHTML = '';
+            transcriptEl.innerHTML = 'Suara Anda akan muncul di sini...';
+            
+            if(!selectedId) {
+                statusEl.textContent = "Pilih hadits untuk memulai.";
+                return;
+            }
+
+            const hadits = database.find(h => h.id === selectedId);
+            const words = hadits.text.split(' ');
+            
+            currentWords = words.map((w, index) => {
+                const span = document.createElement('span');
+                span.className = 'word';
+                span.textContent = w;
+                span.id = 'word-' + index;
+                displayEl.appendChild(span);
+                
+                return {
+                    id: index,
+                    original: w,
+                    clean: removeHarakat(w),
+                    matched: false
+                };
+            });
+            
+            statusEl.textContent = "Siap direkam. Klik 'Mulai Setoran Suara'.";
+        });
+
+        // Setup Speech Recognition
+        if ('webkitSpeechRecognition' in window) {
+            recognition = new webkitSpeechRecognition();
+            recognition.continuous = true;
+            recognition.interimResults = true;
+            recognition.lang = 'ar-SA'; // Bahasa Arab
+
+            recognition.onstart = function() {
+                statusEl.textContent = "Mendengarkan... Silakan baca haditsnya.";
+                statusEl.style.color = "#27ae60";
+                startBtn.style.display = 'none';
+                stopBtn.style.display = 'inline-block';
+            };
+
+            recognition.onresult = function(event) {
+                let final_transcript = '';
+                let interim_transcript = '';
+
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    if (event.results[i].isFinal) {
+                        final_transcript += event.results[i][0].transcript;
+                    } else {
+                        interim_transcript += event.results[i][0].transcript;
+                    }
+                }
+                
+                const currentTranscript = final_transcript + interim_transcript;
+                transcriptEl.innerHTML = currentTranscript;
+                
+                checkWords(currentTranscript);
+            };
+
+            recognition.onerror = function(event) {
+                statusEl.textContent = "Terjadi kesalahan: " + event.error;
+                statusEl.style.color = "#e74c3c";
+                stopRecording();
+            };
+
+            recognition.onend = function() {
+                statusEl.textContent = "Perekaman selesai.";
+                statusEl.style.color = "#333";
+                stopRecording();
+            };
+        } else {
+            statusEl.textContent = "Browser Anda tidak mendukung Pengenalan Suara. Gunakan Google Chrome.";
+        }
+
+        function checkWords(transcript) {
+            const cleanTranscript = removeHarakat(transcript).split(' ');
+            
+            currentWords.forEach(wordObj => {
+                if (!wordObj.matched) {
+                    // Cek apakah kata bersih ada di transkrip
+                    if (cleanTranscript.includes(wordObj.clean)) {
+                        wordObj.matched = true;
+                        document.getElementById('word-' + wordObj.id).classList.add('matched');
+                    }
+                }
+            });
+            
+            // Cek jika semua kata sudah matched
+            if(currentWords.length > 0 && currentWords.every(w => w.matched)) {
+                statusEl.textContent = "🎉 Masya Allah, Hafalan Anda Sempurna!";
+                statusEl.style.color = "#27ae60";
+                stopRecording();
+            }
+        }
+
+        function stopRecording() {
+            if(recognition) recognition.stop();
+            startBtn.style.display = 'inline-block';
+            stopBtn.style.display = 'none';
+        }
+
+        startBtn.addEventListener('click', () => {
+            if(!selectEl.value) {
+                alert("Pilih hadits terlebih dahulu!");
+                return;
+            }
+            // Reset matched status
+            currentWords.forEach(w => {
+                w.matched = false;
+                document.getElementById('word-' + w.id).classList.remove('matched');
+            });
+            transcriptEl.innerHTML = '';
+            recognition.start();
+        });
+
+        stopBtn.addEventListener('click', stopRecording);
+
+    </script>
+</body>
+</html>
